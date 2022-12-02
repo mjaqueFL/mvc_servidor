@@ -1,18 +1,19 @@
 <?php
-	/**
-		Fachada de la aplicación.
 
-		Carga la configuración.
-		Ejecuta los Middlewares:
-			- Identificación del usuario
-			- Lectura de parámetros de petición
-		Realiza el Routing
-			- Carga el Controlador pedido
-			- Llama a su método
-		Controla errores
-	**/
+	/** FACHADA de la aplicación.
+	 *
+	 * Su objetivo principal es LLAMAR AL CONTROLADOR QUE QUIERE EL USUARIO
+	 *
+	 * Sus responsabilidades son:
+	 * 1. Leer la configuración general de la aplicación.
+	 * 2. Abrir la sesión del usuario, si hay.
+	 * 3. Leer los parámetros de la petición.
+	 * 4. Cargar el Controlador.
+	 * 5. Llamar al método del controlador.
+	 * 6. Gestionar los errores.
+	 * */
 
-	//Cargamos la configuración
+	//Cargar la configuración
 	$config = require_once('config.php');
 	if ($config['debug']){
 		ini_set('display_errors', 1);
@@ -21,71 +22,86 @@
 	}
 
 	try{
-		//MIDDLEWAREs
-		//Identificación del usuario
-		$usuario = null;
+
+		//Abrimos la sesión y cargamos... lo que haya (usuario logeado, carrito...)
 		session_start();
-		if (isset($_SESSION['usuario']))
+		$usuario = null;
+		if(isset($_SESSION['usuario']))
 			$usuario = $_SESSION['usuario'];
 
-		//Lectura de parámetros de la petición: método, pathParams, queryParams y body
-		//Llamamos "recurso solicitado" al primer pathParam
-		$metodo = $_SERVER['REQUEST_METHOD'];
-		$metodo = $_SERVER['REQUEST_METHOD'];
+		//Leer los parámetros: 
+		//Ref:https://www.php.net/manual/es/reserved.variables.server.php 
+		//	método de la petición: $metodo
+		//	parámetros del path: $pathParams
+		//	parámetros de consulta: $queryParams
+		//	cuerpo de la petición: $body
+		//
+		//	http://.../index.php/pathParam1/pathParam2?qp1=56&qp2=Hola&qp3=42
+		//	Ejemplos:
+		//		http://midominio.com/aplicacion/index.php?accion=consulta&id_cliente=7
+		//		http://midominio.com/aplicacion/index.php/login
+		//		http://midomi.../index.php/cliente/alta?nombre=Pepe&apellidos=Garcia%20Torres
+		//
+		//		http://midominio.com/index.php - Sin controlador.
+		//
+
+		//Leemos el método de la petición HTTP
+		$metodo = $_SERVER['REQUEST_METHOD'];	//GET, POST, PUT, DELETE, OPTIONS, HEAD...
 		
+		//Leemos los Path Params
 		$pathParams = null;
-		$recurso = 'login';	//por defecto
 		if (isset($_SERVER['PATH_INFO'])){
 			$pathParams = explode('/', $_SERVER['PATH_INFO']);
-			$recurso = $pathParams[1];	//El primer elemento es la /.
-			if (count($pathParams) >= 2)
-				array_splice($pathParams, 0, 2);	//Quitamos la / y el recurso solicitado.
 		}
-		
-		$queryParams = [];
+
+		//si no pide controlador, le mando al cuerno
+		if (count($pathParams) < 2){
+			header('Location: index.html');
+			die();
+		}
+		//Leemos el controlador. Hemos acordado que estará en el primer parámetro de Path
+		$controlador = $pathParams[1];
+
+		//Leemos los parámetros de consulta
+		$queryParams = null;
 		parse_str($_SERVER['QUERY_STRING'], $queryParams);
-		
+
+		//Leemos el body (AJAX con JSON)
 		$body = json_decode(file_get_contents('php://input'));
 
-		//ROUTING
-		//Cargamos el controlador del recurso que han solicitado
-		$controlador = false;
-		switch($recurso){
+
+		//Cargamos el controlador
+		switch($controlador){
 			case 'login':
-				require_once('./controladores/login.php');
+				require_once($config['path_controladores'].'login.php');
 				$controlador = new ControladorLogin();
 				break;
 			case 'cliente':
-				require_once('./controladores/cliente.php');
-				$controlador = new ControladorCliente();
+				require_once($config['path_controladores'].'cliente.php');
+				$controlador = new ControladorCliente($config);
 				break;
-			//Otros case...
+			case 'pregunta':
+				require_once($config['path_controladores'].'pregunta.php');
+				$controlador = new ControladorPregunta();
+				break;
 			default:
 				header('HTTP/1.1 501 Not Implemented');
+		}
+		switch($metodo){
+			case 'GET':
+				$controlador->get($usuario,$pathParams, $queryParams);
+				die();
+			case 'POST':
+				$controlador->post($usuario,$pathParams, $queryParams, $body);
 				die();
 		}
 
-		//Llamamos al Método del Controlador
-		switch($metodo){
-			case 'GET':
-				$controlador->get($pathParams, $queryParams, $usuario);
-				die();
-			case 'POST':
-				$controlador->post($pathParams, $queryParams, $body, $usuario);
-				die();
-			case 'DELETE':
-				$controlador->delete($pathParams, $queryParams, $usuario);
-				die();
-			case 'PUT':
-				$controlador->put($pathParams, $queryParams, $body, $usuario);
-				die();
-			default:
-				header('HTTP/1.1 501 Not Implemented');
-				die();
-			}
 
-	}catch(Throwable $excepcion){	//Throwable (interfaz) incluye Error y Exception
+	}catch(Throwable $e){
 		header('HTTP/1.1 500 Internal Server Error');
-		echo $excepcion;
-		die();
+		if ($config['debug'])
+			echo $e;
 	}
+
+
+

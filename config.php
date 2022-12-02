@@ -1,12 +1,14 @@
-
 <?php
 	/**
-		Fichero de configuración
-	**/
+	 * Fichero de configuración.
+	 **/
+
 	return array(
 		'debug' => true,
-		//'bd' => 'nombre_bd',
-		//'bd_usuario' => 'usuario_bd',
-		//'bd_clave' => 'clave_bd'
-		//
+		'path_controladores' => 'php/controladores/',
+		'path_vistas' => 'php/vistas/',
+		'path_modelos' => 'php/modelos/',
+		'path_html' => 'php/vistas/html/',
+		'bd' => 'pruebas'
+		//'bd_usuario' => 'pepe'
 	);
