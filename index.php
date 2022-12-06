@@ -49,7 +49,7 @@
 		$metodo = $_SERVER['REQUEST_METHOD'];	//GET, POST, PUT, DELETE, OPTIONS, HEAD...
 		
 		//Leemos los Path Params
-		$pathParams = null;
+		$pathParams = [];
 		if (isset($_SERVER['PATH_INFO'])){
 			$pathParams = explode('/', $_SERVER['PATH_INFO']);
 		}
